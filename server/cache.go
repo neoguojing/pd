@@ -173,6 +173,18 @@ func (r *regionsInfo) searchRegion(regionKey []byte) *regionInfo {
 	return r.getRegion(region.GetId())
 }
 
+func (r *regionsInfo) searchRegionWithLimit(regionKey []byte, limit uint64) []*regionInfo {
+	regions := r.tree.scan(regionKey, limit)
+	if regions == nil {
+		return nil
+	}
+	var res []*regionInfo
+	for _, region := range regions {
+		res = append(res, r.getRegion(region.GetId()))
+	}
+	return res
+}
+
 func (r *regionsInfo) getRegions() []*regionInfo {
 	regions := make([]*regionInfo, 0, len(r.regions))
 	for _, region := range r.regions {
@@ -364,6 +376,12 @@ func (c *clusterInfo) searchRegion(regionKey []byte) *regionInfo {
 	c.RLock()
 	defer c.RUnlock()
 	return c.regions.searchRegion(regionKey)
+}
+
+func (c *clusterInfo) searchRegionWithLimit(regionKey []byte, limit uint64) []*regionInfo {
+	c.RLock()
+	defer c.RUnlock()
+	return c.regions.searchRegionWithLimit(regionKey, limit)
 }
 
 func (c *clusterInfo) putRegion(region *regionInfo) error {

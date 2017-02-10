@@ -35,6 +35,7 @@ type Client interface {
 	// Also it may return nil if PD finds no Region for the key temporarily,
 	// client should retry later.
 	GetRegion(key []byte) (*metapb.Region, *metapb.Peer, error)
+	GetRegions(key []byte, limit *uint64) ([]*RegionsRespon, error)
 	// GetStore gets a store from PD by store id.
 	// The store may expire later. Caller is responsible for caching and taking care
 	// of store change.
@@ -95,6 +96,34 @@ func (c *client) GetRegion(key []byte) (*metapb.Region, *metapb.Peer, error) {
 		return nil, nil, errors.Trace(err)
 	}
 	return req.pbResp.GetRegion(), req.pbResp.GetLeader(), nil
+}
+
+func (c *client) GetRegions(key []byte, limit *uint64) ([]*RegionsRespon, error) {
+	req := &regionsRequest{
+		pbReq: &pdpb.GetRegionRequest{
+			RegionKey: key,
+			Limit:     limit,
+		},
+		done: make(chan error, 1),
+	}
+
+	start := time.Now()
+	c.worker.requests <- req
+	err := <-req.done
+	requestDuration.WithLabelValues("get_regions").Observe(time.Since(start).Seconds())
+
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	var res []*RegionsRespon
+	for _, regionInfo := range req.pbResp {
+		res = append(res, &RegionsRespon{
+			Region: regionInfo.GetRegion(),
+			Leader: regionInfo.GetLeader(),
+		})
+	}
+	return res, nil
+
 }
 
 func (c *client) GetStore(storeID uint64) (*metapb.Store, error) {

@@ -22,6 +22,7 @@ import (
 
 	"github.com/juju/errors"
 	"github.com/ngaut/log"
+	"github.com/pingcap/kvproto/pkg/metapb"
 	"github.com/pingcap/kvproto/pkg/msgpb"
 	"github.com/pingcap/kvproto/pkg/pdpb"
 	"github.com/pingcap/kvproto/pkg/util"
@@ -53,6 +54,16 @@ type regionRequest struct {
 	pbReq  *pdpb.GetRegionRequest
 	done   chan error
 	pbResp *pdpb.GetRegionResponse
+}
+
+type RegionsRespon struct {
+	Region *metapb.Region
+	Leader *metapb.Peer
+}
+type regionsRequest struct {
+	pbReq  *pdpb.GetRegionRequest
+	done   chan error
+	pbResp []*pdpb.GetRegionResponse
 }
 
 type clusterConfigRequest struct {
@@ -171,6 +182,16 @@ func (w *rpcWorker) handleRequests(requests []interface{}, conn *bufio.ReadWrite
 				r.done <- err
 			} else {
 				r.pbResp = regionResp
+				r.done <- nil
+			}
+		case *regionsRequest:
+			regionsResp, err := w.getRegionsFromRemote(conn, r.pbReq)
+			if err != nil {
+				ok = false
+				log.Error(err)
+				r.done <- err
+			} else {
+				r.pbResp = regionsResp
 				r.done <- nil
 			}
 		case *clusterConfigRequest:
@@ -324,6 +345,25 @@ func (w *rpcWorker) getRegionFromRemote(conn *bufio.ReadWriter, regionReq *pdpb.
 		return nil, errors.New("[pd] GetRegion field in rpc response not set")
 	}
 	return rsp.GetGetRegion(), nil
+}
+
+func (w *rpcWorker) getRegionsFromRemote(conn *bufio.ReadWriter, regionReq *pdpb.GetRegionRequest) ([]*pdpb.GetRegionResponse, error) {
+	req := &pdpb.Request{
+		Header: &pdpb.RequestHeader{
+			Uuid:      uuid.NewV4().Bytes(),
+			ClusterId: w.clusterID,
+		},
+		CmdType:   pdpb.CommandType_GetRegion,
+		GetRegion: regionReq,
+	}
+	rsp, err := w.callRPC(conn, req)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	if rsp.GetGetRegions() == nil {
+		return nil, errors.New("[pd] GetRegion field in rpc response not set")
+	}
+	return rsp.GetGetRegions(), nil
 }
 
 func (w *rpcWorker) getClusterConfigFromRemote(conn *bufio.ReadWriter, clusterConfigReq *pdpb.GetClusterConfigRequest) (*pdpb.GetClusterConfigResponse, error) {

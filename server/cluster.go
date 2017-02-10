@@ -271,6 +271,10 @@ func (c *RaftCluster) getRegion(regionKey []byte) (*metapb.Region, *metapb.Peer)
 	return region.Region, region.Leader
 }
 
+func (c *RaftCluster) getRegions(regionKey []byte, limit uint64) []*regionInfo {
+	return c.cachedCluster.searchRegionWithLimit(regionKey, limit)
+}
+
 // GetRegionByID gets region and leader peer by regionID from cluster.
 func (c *RaftCluster) GetRegionByID(regionID uint64) (*metapb.Region, *metapb.Peer) {
 	region := c.cachedCluster.getRegion(regionID)

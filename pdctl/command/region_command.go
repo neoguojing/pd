@@ -80,6 +80,7 @@ func NewRegionWithKeyCommand() *cobra.Command {
 		Run:   showRegionWithTableCommandFunc,
 	}
 	r.Flags().String("format", "raw", "the key format")
+	r.Flags().Uint64("limit", 1, "the limit of region")
 	return r
 }
 
@@ -95,6 +96,12 @@ func showRegionWithTableCommandFunc(cmd *cobra.Command, args []string) {
 	)
 
 	format := cmd.Flags().Lookup("format").Value.String()
+	limit, err := cmd.Flags().GetUint64("limit")
+	if err != nil {
+		fmt.Println("Error: ", err)
+		return
+	}
+
 	switch format {
 	case "raw":
 		key = []byte(args[0])
@@ -114,22 +121,45 @@ func showRegionWithTableCommandFunc(cmd *cobra.Command, args []string) {
 		fmt.Println("Error: ", err)
 		return
 	}
-	region, leader, err := client.GetRegion(key)
-	if err != nil {
-		fmt.Println("Error: ", err)
-		return
-	}
+	fmt.Println(limit)
+	if limit == 1 {
+		region, leader, err := client.GetRegion(key)
+		if err != nil {
+			fmt.Println("Error: ", err)
+			return
+		}
 
-	r := &regionInfo{
-		Region: region,
-		Leader: leader,
+		r := &regionInfo{
+			Region: region,
+			Leader: leader,
+		}
+		infos, err := json.MarshalIndent(r, "", "  ")
+		if err != nil {
+			fmt.Println("Error: ", err)
+			return
+		}
+		fmt.Println(string(infos))
+	} else {
+		regions, err := client.GetRegions(key, &limit)
+		if err != nil {
+			fmt.Println("Error: ", err)
+			return
+		}
+
+		var r []*regionInfo
+		for _, region := range regions {
+			r = append(r, &regionInfo{
+				Region: region.Region,
+				Leader: region.Leader,
+			})
+		}
+		infos, err := json.MarshalIndent(r, "", "  ")
+		if err != nil {
+			fmt.Println("Error: ", err)
+			return
+		}
+		fmt.Println(string(infos))
 	}
-	infos, err := json.MarshalIndent(r, "", "  ")
-	if err != nil {
-		fmt.Println("Error: ", err)
-		return
-	}
-	fmt.Println(string(infos))
 }
 
 func decodeProtobufText(text string) ([]byte, error) {

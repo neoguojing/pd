@@ -19,6 +19,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/google/btree"
+	"github.com/ngaut/log"
 	"github.com/pingcap/kvproto/pkg/metapb"
 	"github.com/pingcap/kvproto/pkg/pdpb"
 )
@@ -223,6 +224,32 @@ func (t *regionTree) find(region *metapb.Region) *regionItem {
 	})
 
 	if result == nil || !result.Contains(region.StartKey) {
+		return nil
+	}
+
+	return result
+}
+
+func (t regionTree) scan(regionKey []byte, limit uint64) []*metapb.Region {
+	item := &regionItem{region: &metapb.Region{StartKey: regionKey}}
+	var (
+		result []*metapb.Region
+		count  uint64
+	)
+	t.tree.AscendGreaterOrEqual(item, func(i btree.Item) bool {
+		result = append(result, i.(*regionItem).region)
+		if count < limit-1 {
+			count++
+			return true
+		}
+		return false
+	})
+	if result == nil {
+		return nil
+	}
+	log.Warn("test debug", count, limit)
+	ritem := &regionItem{region: result[0]}
+	if !ritem.Contains(regionKey) {
 		return nil
 	}
 

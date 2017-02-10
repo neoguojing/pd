@@ -133,6 +133,21 @@ func (c *conn) handleGetRegion(req *pdpb.Request) (*pdpb.Response, error) {
 	}
 
 	key := request.GetRegionKey()
+	limit := request.GetLimit()
+	if limit != 1 {
+		regionsInfo := cluster.getRegions(key, limit)
+		var regions []*pdpb.GetRegionResponse
+		for _, region := range regionsInfo {
+			regions = append(regions, &pdpb.GetRegionResponse{
+				Region: region.Region,
+				Leader: region.Leader,
+			})
+		}
+		return &pdpb.Response{
+			GetRegions: regions,
+		}, nil
+	}
+
 	region, leader := cluster.getRegion(key)
 	return &pdpb.Response{
 		GetRegion: &pdpb.GetRegionResponse{
