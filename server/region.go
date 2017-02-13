@@ -19,7 +19,6 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/google/btree"
-	"github.com/ngaut/log"
 	"github.com/pingcap/kvproto/pkg/metapb"
 	"github.com/pingcap/kvproto/pkg/pdpb"
 )
@@ -247,7 +246,6 @@ func (t regionTree) scan(regionKey []byte, limit uint64) []*metapb.Region {
 	if result == nil {
 		return nil
 	}
-	log.Warn("test debug", count, limit)
 	ritem := &regionItem{region: result[0]}
 	if !ritem.Contains(regionKey) {
 		return nil

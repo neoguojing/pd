@@ -121,7 +121,6 @@ func showRegionWithTableCommandFunc(cmd *cobra.Command, args []string) {
 		fmt.Println("Error: ", err)
 		return
 	}
-	fmt.Println(limit)
 	if limit == 1 {
 		region, leader, err := client.GetRegion(key)
 		if err != nil {
