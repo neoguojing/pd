@@ -82,7 +82,7 @@ func (s *storeInfo) leaderCount() uint64 {
 	return uint64(s.stats.LeaderCount)
 }
 
-func (s *storeInfo) leaderRatio() float64 {
+func (s *storeInfo) leaderScore() float64 {
 	return float64(s.stats.LeaderCount)
 }
 
@@ -90,12 +90,11 @@ func (s *storeInfo) regionCount() uint64 {
 	return uint64(s.stats.RegionCount)
 }
 
-func (s *storeInfo) regionRatio() float64 {
+func (s *storeInfo) regionScore() float64 {
 	if s.stats.GetCapacity() == 0 {
 		return 0
 	}
-	capaGB := float64(s.stats.GetCapacity()) / float64(1024*1024*1024)
-	return float64(s.stats.RegionCount) / capaGB
+	return float64(s.stats.RegionCount) / float64(s.stats.GetCapacity())
 }
 
 func (s *storeInfo) storageSize() uint64 {
@@ -109,22 +108,15 @@ func (s *storeInfo) storageRatio() float64 {
 	return float64(s.storageSize()) / float64(s.stats.GetCapacity())
 }
 
-func (s *storeInfo) resourceRatio(kind ResourceKind) float64 {
+func (s *storeInfo) resourceScore(kind ResourceKind) float64 {
 	switch kind {
 	case leaderKind:
-		return s.leaderRatio()
+		return s.leaderScore()
 	case regionKind:
-		return s.regionRatio()
+		return s.regionScore()
 	default:
 		return 0
 	}
-}
-
-func (s *storeInfo) resourceScores() []int {
-	var scores []int
-	scores = append(scores, int(s.leaderRatio()))
-	scores = append(scores, int(s.regionRatio()))
-	return scores
 }
 
 func (s *storeInfo) getLabelValue(key string) string {
@@ -154,7 +146,7 @@ type StoreStatus struct {
 
 	// Blocked means that the store is blocked from balance.
 	blocked         bool
-	LeaderCount     int       `json:"leader_count"`
+	LeaderCount     uint32    `json:"leader_count"`
 	LastHeartbeatTS time.Time `json:"last_heartbeat_ts"`
 }
 
